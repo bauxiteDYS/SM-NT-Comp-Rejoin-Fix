@@ -8,7 +8,6 @@
 
 // A player can drop a weapon such as an AA, rejoin as support to give themselves AA when it should not be possible for support to get AA themselves
 // or they can rejoin again and get AA to have two AAs for the team where otherwise not possible if other teammates dont' have 20 xp or arent assault
-
 // how to fix? 
 // I think it's best to lock players into their class if they drop a wep during respawn period, and rejoin, and also drop their weapons before they rejoin
 // when they rejoin, strip them of (all) their weps
@@ -43,7 +42,7 @@ public Plugin myinfo = {
     name = "NT Comp rejoin fix",
     author = "bauxite",
     description = "Fix comp exploits related to re-joining in spawn period",
-    version = "0.1.0",
+    version = "0.1.1",
     url = ""
 };
 
@@ -188,12 +187,36 @@ public void OnWeaponEquipPost(int client, int weapon)
 	#if DEBUG
 	PrintToServer("[rf] 1 wep equip");
 	#endif
-			
+	
+	if(!g_respawnPeriod)
+	{
+		return;
+	}
+	
+	int GameState = GameRules_GetProp("m_iGameState");
+	
+	if(GameState == GAMESTATE_ROUND_OVER || GameState == GAMESTATE_WAITING_FOR_PLAYERS)
+	{
+		return;
+	}
+	
 	if(!IsValidEdict(weapon) || !IsPlayerAlive(client))
 	{
 		return;
 	}
-
+	
+	if(g_steamID[client][0] == '\0')
+	{
+		PrintToServer("[rf] Error getting steam id when pickup");
+	}
+	
+	int slot = GetWeaponSlot(weapon);
+	
+	if(slot == -1)
+	{
+		return;
+	}
+	
 	char className[32];
 	
 	if(!GetEntityClassname(weapon, className, sizeof(className)))
@@ -204,13 +227,6 @@ public void OnWeaponEquipPost(int client, int weapon)
 	#if DEBUG 
 	PrintToServer("[rf] 2 wep equip, picked up %d", weapon);
 	#endif
-	
-	int slot = GetWeaponSlot(weapon);
-	
-	if(slot == -1)
-	{
-		return;
-	}
 	
 	int wepRef = EntIndexToEntRef(weapon);
 	
@@ -242,6 +258,11 @@ public Action OnWeaponDrop(int client, int weapon)
 	PrintToServer("[rf] Weapon Drop");
 	#endif
 	
+	if(!g_respawnPeriod)
+	{
+		return Plugin_Continue;
+	}
+	
 	int GameState = GameRules_GetProp("m_iGameState");
 	
 	if(GameState == GAMESTATE_ROUND_OVER || GameState == GAMESTATE_WAITING_FOR_PLAYERS)
@@ -249,7 +270,7 @@ public Action OnWeaponDrop(int client, int weapon)
 		return Plugin_Continue;
 	}
 	
-	if(!g_respawnPeriod || !IsPlayerAlive(client) || !IsValidEntity(weapon))
+	if(!IsValidEdict(weapon) || !IsPlayerAlive(client))
 	{
 		return Plugin_Continue;
 	}
@@ -404,4 +425,3 @@ void StripWeapons(int userid)
 	PrintToChatAll("[rf] Stripping weapons of %N", client);
 	#endif
 }
-	
